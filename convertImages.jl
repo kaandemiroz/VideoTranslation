@@ -3,10 +3,6 @@ using Images
 using Colors
 
 function main()
-	#============================
-	MNIST.xtrn, MNIST.ytrn
-	MNIST.xtst, MNIST.ytst
-	============================#
 	path = "E:/Datasets/Flickr30k/flickr30k-images/"
 	outpath = "E:/Datasets/Flickr30k/images.txt"
 	key = ".jpg"
@@ -23,12 +19,13 @@ function main()
 	index = 1
  	for image_name in image_names
 		print(index)
-  	#Read image file
-  	imgPath = "$(path)$(image_name)"
-  	img = load(imgPath)
+	  	#Read image file
+	  	imgPath = "$(path)$(image_name)"
+	  	img = load(imgPath)
+		#Resize image to 224x224
 		img = Images.imresize(img, (imageSize, imageSize))
 
-		#Convert img to float values
+		#Convert img to float values for RGB
 		r = map(Float32,red(img))
 		g = map(Float32,green(img))
 		b = map(Float32,blue(img))
