@@ -1,4 +1,5 @@
 using Knet
+using JLD
 using Images
 using Colors
 
@@ -12,7 +13,17 @@ function main()
 	batchsize = 10
 
 	image_names = filter(x->contains(x,key), readdir(fpath))
-	numbatches = div(size(image_names,1), batchsize)
+	numbatches = 10#div(size(image_names,1), batchsize)
+
+	# Load VGG-16 Model
+	model = JLD.load("vgg16.jld", "model")
+	# Load caption vocabulary
+	vocabulary = open("vocabulary.txt")
+	dict = Dict{Any,Int32}()
+	for (n, s) in enumerate(eachline(f))
+		dict[chomp(s)] = n
+	end
+	close(f)
 
 	for epoch = 1:nepochs
 
@@ -24,7 +35,7 @@ function main()
 				index = batch * batchsize + i
 				print("$(index)\n")
 				#Read image file
-				imgPath = "$(path)$(image_names[index])"
+				imgPath = "$(fpath)$(image_names[index])"
 				img = load(imgPath)
 				#Resize image to 224x224
 				img = Images.imresize(img, (imageSize, imageSize))
@@ -39,7 +50,8 @@ function main()
 				x[:,:,3,i] = b
 			end
 
-
+			output = forw(model,x)
+			print(output)
 
 		end
 
