@@ -1,10 +1,10 @@
 using Knet
 using JLD
 
-@knet function lstmnetwork(word; layers = 2, size = 1000, vocab_size = 12594, lstm_type = :lstm1 o...)
-	wvec = wdot(word; o..., out = size)
-    yrnn = repeat(wvec; o..., frepeat = lstm_type, nrepeat = layers, out = size)
-    return wbf(yrnn; o..., out = vocab_size, f = :soft)
+@knet function lstmnetwork(word; nlayer = 2, size = 1000, vocab_size = 12594, lstm_type = :lstm1, o...)
+	wvec = wdot(word; out = size, init = Uniform(-0.08, 0.08), o...)
+    y = repeat(wvec; o..., frepeat = lstm_type, nrepeat = nlayer, out = size)
+    return wbf(y; o..., out = vocab_size, f = :soft)
 end
 
 @knet function lstm1(x; o...)
