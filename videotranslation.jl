@@ -16,14 +16,20 @@ function main()
 	numbatches = 10#div(size(image_names,1), batchsize)
 
 	# Load VGG-16 Model
-	model = JLD.load("vgg16.jld", "model")
+	# vgg16 = JLD.load("vgg16.jld", "model")
+	# Load the LSTM Model
+	lstm = JLD.load("lstm.jld", "model")
 	# Load caption vocabulary
-	vocabulary = open("vocabulary.txt")
+	vocabulary = open("lstm_data/vocabulary.txt")
 	dict = Dict{Any,Int32}()
 	for (n, s) in enumerate(eachline(f))
 		dict[chomp(s)] = n
 	end
 	close(f)
+
+	yt_train = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_train.txt", ',', '\n'; use_mmap = true)
+	yt_test = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_test.txt", ',', '\n'; use_mmap = true)
+	yt_val = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_val.txt", ',', '\n'; use_mmap = true)
 
 	for epoch = 1:nepochs
 
@@ -50,7 +56,7 @@ function main()
 				x[:,:,3,i] = b
 			end
 
-			output = forw(model,x)
+			output = forw(lstm,x)
 			print(output)
 
 		end
