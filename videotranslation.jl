@@ -2,42 +2,54 @@ using Knet
 using JLD
 using Images
 using Colors
+using CUDArt
 
 function main()
-	fpath = "E:/Datasets/Flickr30k/flickr30k-images/"
-	cpath = "E:/Datasets/COCO2014/train2014/"
+	fpath = "flickr30k-images/"
+	cpath = "train2014/"
 	key = ".jpg"
 	imageSize = 224
 
 	nepochs = 1
 	batchsize = 10
 
-	image_names = filter(x->contains(x,key), readdir(fpath))
-	numbatches = 10#div(size(image_names,1), batchsize)
+	# image_names = filter(x->contains(x,key), readdir(fpath))
+	# numbatches = 1#div(size(image_names,1), batchsize)
 
 	# Load VGG-16 Model
 	# vgg16 = JLD.load("vgg16.jld", "model")
 	# Load the LSTM Model
 	lstm = JLD.load("lstm.jld", "model")
-	# Load caption vocabulary
+	# # Load caption vocabulary
 	vocabulary = open("lstm_data/vocabulary.txt")
 	word2int = Dict{Any,Int32}()
+	int2word = Array(Any, 12594)
 	for (n, s) in enumerate(eachline(vocabulary))
 		word2int[chomp(s)] = n
+		int2word[n] = chomp(s);
 	end
+	int2word[12594] = "<eos>"
+	word2int["<eos>"] = 12594
 	close(vocabulary)
 
 	yt_train = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_train.txt", ',', '\n'; use_mmap = true)
 	yt_test = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_test.txt", ',', '\n'; use_mmap = true)
 	yt_val = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_val.txt", ',', '\n'; use_mmap = true)
 
-	sents_train = readdlm("lstm_data/sents_train_lc_nopunc.txt", '\t', '\n'; use_mmap = true)
-	sents_test = readdlm("lstm_data/sents_test_lc_nopunc.txt", '\t', '\n'; use_mmap = true)
-	sents_val = readdlm("lstm_data/sents_val_lc_nopunc.txt", '\t', '\n'; use_mmap = true)
+	sents_train = readdlm("lstm_data/sents_train_lc_nopunc.txt"; use_mmap = true)
+	sents_test = readdlm("lstm_data/sents_test_lc_nopunc.txt"; use_mmap = true)
+	sents_val = readdlm("lstm_data/sents_val_lc_nopunc.txt"; use_mmap = true)
 
-	sforw(lstm, yt_val[1,:])
+	train(lstm, ( transpose(yt_val[1,:]), transpose(sents_val[1:40,2:28]) ), softloss)
 
-	# output = generate(lstm,x)
+	sent = "";
+	for i = 1:27
+		ypred = to_host(sforw(lstm, transpose(yt_val[1,:]) ))
+		m = findmax(ypred,1)[2] % length(word2int)
+		sent = string(sent, int2word[m])
+	end
+
+	# print(sent)
 
 	# for epoch = 1:nepochs
 	#
@@ -64,6 +76,7 @@ function main()
 	# 			x[:,:,3,i] = b
 	# 		end
 	#
+	# 		y = forw(vgg16, x)
 	#
 	# 	end
 	#
@@ -86,13 +99,16 @@ function seqbatch(seq, dict, batchsize)
     return data
 end
 
-function train(f, data, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=nothing)
+function train(f, item, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=nothing)
     reset!(f, keepstate = true)
     ystack = Any[]
-    for item in data
+	# print(data)
+    # for item in data
         if item != nothing
+			# print(item)
             (x,ygold) = item
             ypred = sforw(f, x)
+			print(ypred)
             # Knet.netprint(f); error(:ok)
             losscnt != nothing && (losscnt[1] += loss(ypred, ygold); losscnt[2] += 1)
             push!(ystack, copy(ygold))
@@ -102,7 +118,7 @@ function train(f, data, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=no
                 sback(f, ygold, loss)
             end
             #error(:ok)
-            gcheck && break # return losscnt[1] leave the loss calculation to test # the parameter gradients are cumulative over the whole sequence
+            gcheck && return # return losscnt[1] leave the loss calculation to test # the parameter gradients are cumulative over the whole sequence
             g = (gclip > 0 || maxnorm!=nothing ? gnorm(f) : 0)
             # global _update_dbg; _update_dbg +=1; _update_dbg > 1 && error(:ok)
             update!(f; gscale=(g > gclip > 0 ? gclip/g : 1))
@@ -113,7 +129,7 @@ function train(f, data, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=no
             end
             reset_trn!(f; keepstate=true)
         end
-    end
+    # end
     # losscnt[1]/losscnt[2]       # this will give per-token loss, should we do per-sequence instead?
 end
 

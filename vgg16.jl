@@ -39,7 +39,7 @@ end
 
 # Compile the VGG-16 Model to vgg16.jld
 function main()
-	matpath = "E:/Datasets/vgg16.mat"
+	matpath = "vgg16.mat"
 	weights = matread(matpath)["layers"]
 	vgg16 = compile(:vgg16; weights = weights)
 	JLD.save("vgg16.jld", "model", clean(vgg16))
