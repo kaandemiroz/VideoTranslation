@@ -21,35 +21,21 @@ function main()
 	# Load the LSTM Model
 	lstm = JLD.load("lstm.jld", "model")
 	# # Load caption vocabulary
-	vocabulary = open("lstm_data/vocabulary.txt")
-	word2int = Dict{Any,Int32}()
-	int2word = Array(Any, 12594)
-	for (n, s) in enumerate(eachline(vocabulary))
-		word2int[chomp(s)] = n
-		int2word[n] = chomp(s);
-	end
-	int2word[12594] = "<eos>"
-	word2int["<eos>"] = 12594
-	close(vocabulary)
+	word2onehot = JLD.load("lstm_data.jld","word2onehot")
+	int2word = JLD.load("lstm_data.jld","int2word")
+	xval = JLD.load("lstm_data.jld","xval")
+	yval = JLD.load("lstm_data.jld","yval")
 
-	yt_train = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_train.txt", ',', '\n'; use_mmap = true)
-	yt_test = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_test.txt", ',', '\n'; use_mmap = true)
-	yt_val = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_val.txt", ',', '\n'; use_mmap = true)
-
-	sents_train = readdlm("lstm_data/sents_train_lc_nopunc.txt"; use_mmap = true)
-	sents_test = readdlm("lstm_data/sents_test_lc_nopunc.txt"; use_mmap = true)
-	sents_val = readdlm("lstm_data/sents_val_lc_nopunc.txt"; use_mmap = true)
-
-	train(lstm, ( transpose(yt_val[1,:]), transpose(sents_val[1:40,2:28]) ), softloss)
+	train(lstm, (xval[:,1], yval[:,1]), softloss)
 
 	sent = "";
 	for i = 1:27
-		ypred = to_host(sforw(lstm, transpose(yt_val[1,:]) ))
-		m = findmax(ypred,1)[2] % length(word2int)
-		sent = string(sent, int2word[m])
+		ypred = to_host(sforw(lstm, xval[:,1] ))
+		m = findmax(ypred,1)[2] % length(word2onehot)
+		sent = string(sent, int2word[m[1]], " ")
 	end
 
-	# print(sent)
+	print(sent)
 
 	# for epoch = 1:nepochs
 	#
@@ -105,7 +91,6 @@ function train(f, item, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=no
 	# print(data)
     # for item in data
         if item != nothing
-			# print(item)
             (x,ygold) = item
             ypred = sforw(f, x)
 			print(ypred)

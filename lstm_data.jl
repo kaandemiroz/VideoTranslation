@@ -4,16 +4,16 @@ function main()
 	# # Load caption vocabulary
 	vocabulary = open("lstm_data/vocabulary.txt")
 	word2onehot = Dict{Any,Any}()
-	onehot2word = Dict{Any,Any}()
+	int2word = Dict{Any,Any}()
 	for (n, s) in enumerate(eachline(vocabulary))
 		sp = sparsevec([n],[1],12594)
 		word2onehot[chomp(s)] = sp
-		onehot2word[sp] = chomp(s);
+		int2word[n] = chomp(s);
 	end
 	# Manually add <eos> tag
 	sp = sparsevec([12594],[1],12594)
 	word2onehot[""] = sp
-	onehot2word[sp] = "";
+	int2word[12594] = "";
 	close(vocabulary)
 
 	yt_train = readdlm("lstm_data/yt_pooled_vgg_fc7_mean_train.txt", ',', '\n'; use_mmap = true)
@@ -67,7 +67,7 @@ function main()
 		lastVid = vid
 	end
 
-	JLD.save("lstm_data.jld","xtrn", xtrn, "xtst", xtst, "xval", xval, "ytrn", xtrn, "ytst", xtst, "yval", xval)
+	JLD.save("lstm_data.jld", "word2onehot", word2onehot, "int2word", int2word, "xtrn", xtrn, "xtst", xtst, "xval", xval, "ytrn", ytrn, "ytst", ytst, "yval", yval)
 
 end
 
