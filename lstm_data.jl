@@ -24,50 +24,53 @@ function main()
 	sents_test = readdlm("lstm_data/sents_test_lc_nopunc.txt"; use_mmap = true)
 	sents_val = readdlm("lstm_data/sents_val_lc_nopunc.txt"; use_mmap = true)
 
-	xtrn = transpose(yt_train)
-	xtst = transpose(yt_test)
-	xval = transpose(yt_val)
+	xtrn = yt_train
+	xtst = yt_test
+	xval = yt_val
 
-	ytrn = Array(Any,1200,66)
-	lastVid = 0
-	index = 0
+	ytrn = Array(Any,1200)
+	lastVid = 1
+	data = Any[]
 	for i = 1:size(sents_train,1)
 		vid = parse(Int,lstrip(sents_train[i,1], ['v','i','d']))
+		push!(data, [word2onehot[string(word)] for word in sents_train[i,2:46] ] )
 		if vid != lastVid
-			index = 0
+			ytrn[lastVid] = data
+			data = Any[]
 		end
-		index+=1
-		ytrn[vid,index] = [word2onehot[string(word)] for word in sents_train[i,2:46] ]
 		lastVid = vid
 	end
+	ytrn[lastVid] = data
 
-	ytst = Array(Any,670,81)
-	lastVid = 0
-	index = 0
+	ytst = Array(Any,670)
+	lastVid = 1
+	data = Any[]
 	for i = 1:size(sents_test,1)
 		vid = parse(Int,lstrip(sents_test[i,1], ['v','i','d'])) - 1300
+		push!(data, [word2onehot[string(word)] for word in sents_test[i,2:42] ] )
 		if vid != lastVid
-			index = 0
+			ytst[lastVid] = data
+			data = Any[]
 		end
-		index+=1
-		ytst[vid,index] = [word2onehot[string(word)] for word in sents_test[i,2:42] ]
 		lastVid = vid
 	end
+	ytst[lastVid] = data
 
-	yval = Array(Any,100,62)
-	lastVid = 0
-	index = 0
+	yval = Array(Any,100)
+	lastVid = 1
+	data = Any[]
 	for i = 1:size(sents_val,1)
 		vid = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
+		push!(data, [word2onehot[string(word)] for word in sents_val[i,2:28] ])
 		if vid != lastVid
-			index = 0
+			yval[lastVid] = data
+			data = Any[]
 		end
-		index+=1
-		yval[vid,index] = [word2onehot[string(word)] for word in sents_val[i,2:28] ]
 		lastVid = vid
 	end
+	yval[lastVid] = data
 
-	JLD.save("lstm_data.jld", "word2onehot", word2onehot, "int2word", int2word, "xtrn", xtrn, "xtst", xtst, "xval", xval, "ytrn", ytrn, "ytst", ytst, "yval", yval)
+	JLD.save("lstm_data.jld", "word2onehot", word2onehot, "int2word", int2word, "xtrn", xtrn, "xtst", xtst, "xval", xval, "ytrn", ytrn, "ytst", ytst, "yval", yval )
 
 end
 

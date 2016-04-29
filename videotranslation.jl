@@ -26,12 +26,12 @@ function main()
 	xval = JLD.load("lstm_data.jld","xval")
 	yval = JLD.load("lstm_data.jld","yval")
 
-	train(lstm, (xval[:,1], yval[:,1]), softloss)
+	train(lstm, (xval[1,:], yval[1]), softloss)
 
 	sent = "";
 	for i = 1:27
-		ypred = to_host(sforw(lstm, xval[:,1] ))
-		m = findmax(ypred,1)[2] % length(word2onehot)
+		ypred = to_host(sforw(lstm, xval[i,:] ))
+		m = findmax(ypred,1)[2] % length(int2word)
 		sent = string(sent, int2word[m[1]], " ")
 	end
 
@@ -85,13 +85,13 @@ function seqbatch(seq, dict, batchsize)
     return data
 end
 
-function train(f, item, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=nothing)
+function train(f, data, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=nothing)
     reset!(f, keepstate = true)
     ystack = Any[]
 	# print(data)
-    # for item in data
-        if item != nothing
-            (x,ygold) = item
+	x = data[1]
+    for ygold in data[2]
+        if ygold != nothing
             ypred = sforw(f, x)
 			print(ypred)
             # Knet.netprint(f); error(:ok)
@@ -112,9 +112,9 @@ function train(f, item, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=no
                 w > maxnorm[1] && (maxnorm[1]=w)
                 g > maxnorm[2] && (maxnorm[2]=g)
             end
-            reset_trn!(f; keepstate=true)
+            reset!(f; keepstate = true)
         end
-    # end
+    end
     # losscnt[1]/losscnt[2]       # this will give per-token loss, should we do per-sequence instead?
 end
 

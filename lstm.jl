@@ -1,9 +1,9 @@
 using Knet
 using JLD
 
-@knet function lstm_network(word; nlayer = 2, size = 1000, vocab_size = 12594, o...)
+@knet function lstm_network(word; layers = 2, size = 1000, vocab_size = 12594, o...)
 	wvec = wdot(word; out = size, init = Uniform(-0.08, 0.08), o...)
-    y = repeat(wvec; o..., frepeat = :lstm_unit, nrepeat = nlayer, out = size)
+    y = repeat(wvec; o..., frepeat = :lstm_unit, nrepeat = layers, out = size)
     return wbf(y; o..., out = vocab_size, f = :soft)
 end
 
