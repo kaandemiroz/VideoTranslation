@@ -4,29 +4,30 @@ using Knet: regs, getp, setp, stack_length, stack_empty!, params
 function main()
 	info("initializing...")
 	imageSize = 224
-
 	nepochs = 1
 	batchsize = 1
 	lr = 0.01
 
 	# Load VGG-16 Model
 	vgg16 = JLD.load("vgg16.jld", "model")
+	# Load the LSTM Model
+	lstm = JLD.load("lstm.jld", "model")
 
 	model = 1
 
 	if model == 2
-		trainLSTMFlickr(vgg16, imageSize, batchsize)
+		trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
 		lr /= 2
 	elseif model == 3
-		trainLSTMCOCO()
+		# trainLSTMCOCO()
 		lr /= 2
 	elseif model == 4
-		trainLSTMFlickr(vgg16, imageSize, batchsize)
-		trainLSTMCOCO()
+		trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
+		# trainLSTMCOCO()
 		lr /= 2
 	end
 
-	trainLSTMYT(lr, nepochs, batchsize, numbatches)
+	trainLSTMYT(lstm, lr, nepochs, batchsize)
 
 	# sent = "";
 	# for i = 1:27
@@ -39,12 +40,15 @@ function main()
 
 end
 
-function trainLSTMFlickr(vgg16, imageSize, batchsize)
+function trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
+	info("training with Flickr30k...")
 	fpath = "Flickr30k/flickr30k-images/"
-	fdesc = "Flickr30k/results_20130124.token"
+	fdesc = JLD.load("lstm_data.jld","fdesc")
+	word2intf = JLD.load("lstm_data.jld","word2intf")
+	int2wordf = JLD.load("lstm_data.jld","int2wordf")
 	key = ".jpg"
 	numbatches = 1#div(size(image_names,1), batchsize)
-	val = rand(1:158915,1000)
+	val = rand(1:length(fdesc),1000)
 
 	image_names = filter(x->contains(x,key), readdir(fpath))
 	for batch = 0:numbatches-1
@@ -55,7 +59,8 @@ function trainLSTMFlickr(vgg16, imageSize, batchsize)
 			index = batch * batchsize + i
 			print("$(index)\n")
 			#Read image file
-			imgPath = "$(fpath)$(image_names[index])"
+			imgName = image_names[val[index]]
+			imgPath = "$(fpath)$(imgName)"
 			img = load(imgPath)
 			#Resize image to 224x224
 			img = Images.imresize(img, (imageSize, imageSize))
@@ -68,54 +73,21 @@ function trainLSTMFlickr(vgg16, imageSize, batchsize)
 			x[:,:,1,i] = r
 			x[:,:,2,i] = g
 			x[:,:,3,i] = b
-		end
 
-		y = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
+			setp(lstm; lr = lr)
+			l = zeros(2); m = zeros(2)
+
+			xval = reshape(to_host(forw(vgg16, x)), (4096, 1))
+			train(lstm, (xval[:,1], fdesc[imgName]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+			test(lstm, (xval[:,1], fdesc[imgName]), softloss, int2wordf)
+		end
 
 	end
 
 end
 
-function trainLSTMCOCO()
-		ctrn_path = "COCO2014/train2014/"
-		cval_path = "COCO2014/val2014/"
-		# ctrn_json = JSON.parsefile("COCO2014/captions_train2014.json"; use_mmap=true)
-		# cval_json = JSON.parsefile("COCO2014/captions_val2014.json"; use_mmap=true)
+function trainLSTMYT(lstm, lr, nepochs, batchsize)
 
-		image_names = filter(x->contains(x,key), readdir(fpath))
-		for batch = 0:numbatches-1
-			#Initialize x matrix
-			x = zeros( imageSize, imageSize, 3, batchsize )
-
-			for i = 1:batchsize
-				index = batch * batchsize + i
-				print("$(index)\n")
-				#Read image file
-				imgPath = "$(fpath)$(image_names[index])"
-				img = load(imgPath)
-				#Resize image to 224x224
-				img = Images.imresize(img, (imageSize, imageSize))
-
-				#Convert img to float values for RGB
-				r = map(Float32,red(img))
-				g = map(Float32,green(img))
-				b = map(Float32,blue(img))
-
-				x[:,:,1,i] = r
-				x[:,:,2,i] = g
-				x[:,:,3,i] = b
-			end
-
-			y = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
-
-		end
-
-end
-
-function trainLSTMYT(lr, nepochs, numbatches, batchsize)
-
-	# Load the LSTM Model
-	lstm = JLD.load("lstm.jld", "model")
 	# # Load caption vocabulary
 	word2int = JLD.load("lstm_data.jld","word2int")
 	int2word = JLD.load("lstm_data.jld","int2word")
