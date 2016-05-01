@@ -1,21 +1,119 @@
-using Knet, JLD, Images, Colors, CUDArt
+using Knet, JLD, Images, Colors, CUDArt, JSON
 using Knet: regs, getp, setp, stack_length, stack_empty!, params
 
 function main()
 	info("initializing...")
-	fpath = "flickr30k-images/"
-	cpath = "train2014/"
-	key = ".jpg"
 	imageSize = 224
 
 	nepochs = 1
-	batchsize = 10
-
-	# image_names = filter(x->contains(x,key), readdir(fpath))
-	# numbatches = 1#div(size(image_names,1), batchsize)
+	batchsize = 1
+	lr = 0.01
 
 	# Load VGG-16 Model
-	# vgg16 = JLD.load("vgg16.jld", "model")
+	vgg16 = JLD.load("vgg16.jld", "model")
+
+	model = 1
+
+	if model == 2
+		trainLSTMFlickr(vgg16, imageSize, batchsize)
+		lr /= 2
+	elseif model == 3
+		trainLSTMCOCO()
+		lr /= 2
+	elseif model == 4
+		trainLSTMFlickr(vgg16, imageSize, batchsize)
+		trainLSTMCOCO()
+		lr /= 2
+	end
+
+	trainLSTMYT(lr, nepochs, batchsize, numbatches)
+
+	# sent = "";
+	# for i = 1:27
+	# 	ypred = to_host(sforw(lstm, xval[i,:] ))
+	# 	m = findmax(ypred,1)[2] % length(int2word)
+	# 	sent = string(sent, int2word[m[1]], " ")
+	# end
+
+	# print(sent)
+
+end
+
+function trainLSTMFlickr(vgg16, imageSize, batchsize)
+	fpath = "Flickr30k/flickr30k-images/"
+	fdesc = "Flickr30k/results_20130124.token"
+	key = ".jpg"
+	numbatches = 1#div(size(image_names,1), batchsize)
+	val = rand(1:158915,1000)
+
+	image_names = filter(x->contains(x,key), readdir(fpath))
+	for batch = 0:numbatches-1
+		#Initialize x matrix
+		x = zeros( imageSize, imageSize, 3, batchsize )
+
+		for i = 1:batchsize
+			index = batch * batchsize + i
+			print("$(index)\n")
+			#Read image file
+			imgPath = "$(fpath)$(image_names[index])"
+			img = load(imgPath)
+			#Resize image to 224x224
+			img = Images.imresize(img, (imageSize, imageSize))
+
+			#Convert img to float values for RGB
+			r = map(Float32,red(img))
+			g = map(Float32,green(img))
+			b = map(Float32,blue(img))
+
+			x[:,:,1,i] = r
+			x[:,:,2,i] = g
+			x[:,:,3,i] = b
+		end
+
+		y = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
+
+	end
+
+end
+
+function trainLSTMCOCO()
+		ctrn_path = "COCO2014/train2014/"
+		cval_path = "COCO2014/val2014/"
+		# ctrn_json = JSON.parsefile("COCO2014/captions_train2014.json"; use_mmap=true)
+		# cval_json = JSON.parsefile("COCO2014/captions_val2014.json"; use_mmap=true)
+
+		image_names = filter(x->contains(x,key), readdir(fpath))
+		for batch = 0:numbatches-1
+			#Initialize x matrix
+			x = zeros( imageSize, imageSize, 3, batchsize )
+
+			for i = 1:batchsize
+				index = batch * batchsize + i
+				print("$(index)\n")
+				#Read image file
+				imgPath = "$(fpath)$(image_names[index])"
+				img = load(imgPath)
+				#Resize image to 224x224
+				img = Images.imresize(img, (imageSize, imageSize))
+
+				#Convert img to float values for RGB
+				r = map(Float32,red(img))
+				g = map(Float32,green(img))
+				b = map(Float32,blue(img))
+
+				x[:,:,1,i] = r
+				x[:,:,2,i] = g
+				x[:,:,3,i] = b
+			end
+
+			y = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
+
+		end
+
+end
+
+function trainLSTMYT(lr, nepochs, numbatches, batchsize)
+
 	# Load the LSTM Model
 	lstm = JLD.load("lstm.jld", "model")
 	# # Load caption vocabulary
@@ -24,7 +122,7 @@ function main()
 	xval = JLD.load("lstm_data.jld","xval")
 	yval = JLD.load("lstm_data.jld","yval")
 
-	setp(lstm; lr = 0.01)
+	setp(lstm; lr = lr)
 	l = zeros(2); m = zeros(2)
 
 	for epoch = 1:nepochs
@@ -37,46 +135,6 @@ function main()
 			test(lstm, (xval[:,i], yval[i]), softloss, int2word)
 		end
 	end
-
-	# sent = "";
-	# for i = 1:27
-	# 	ypred = to_host(sforw(lstm, xval[i,:] ))
-	# 	m = findmax(ypred,1)[2] % length(int2word)
-	# 	sent = string(sent, int2word[m[1]], " ")
-	# end
-
-	# print(sent)
-
-	# for epoch = 1:nepochs
-	#
-	# 	for batch = 0:numbatches-1
-	# 		#Initialize x matrix
-	# 		x = zeros( imageSize, imageSize, 3, batchsize )
-	#
-	# 		for i = 1:batchsize
-	# 			index = batch * batchsize + i
-	# 			print("$(index)\n")
-	# 			#Read image file
-	# 			imgPath = "$(fpath)$(image_names[index])"
-	# 			img = load(imgPath)
-	# 			#Resize image to 224x224
-	# 			img = Images.imresize(img, (imageSize, imageSize))
-	#
-	# 			#Convert img to float values for RGB
-	# 			r = map(Float32,red(img))
-	# 			g = map(Float32,green(img))
-	# 			b = map(Float32,blue(img))
-	#
-	# 			x[:,:,1,i] = r
-	# 			x[:,:,2,i] = g
-	# 			x[:,:,3,i] = b
-	# 		end
-	#
-	# 		y = forw(vgg16, x)
-	#
-	# 	end
-	#
-	# end
 
 end
 
@@ -108,10 +166,12 @@ function train(f, data, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=no
     ystack = Any[]
 	x = data[1]
     for s in data[2]
+		word = sparsevec([1],[map(Float64,1)],12594)
 		for y in s
 			if y != 12594
 				ygold = sparsevec([y],[map(Float64,1)],12594)
-		        ypred = sforw(f, x)
+		        ypred = sforw(f, word, x)
+				word = ygold
 		        # Knet.netprint(f); error(:ok)
 		        losscnt != nothing && (losscnt[1] += loss(ypred, ygold); losscnt[2] += 1)
 		        push!(ystack, copy(ygold))
@@ -131,7 +191,7 @@ function train(f, data, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=no
 					g > maxnorm[2] && (maxnorm[2]=g)
 				end
 				reset_trn!(f)
-				continue
+				break
 			end
 		end
     end
@@ -145,11 +205,13 @@ function test(f, data, loss, int2word; gcheck=false)
 	x = data[1]
     for s in data[2]
 		sent = ""
+		word = sparsevec([1],[map(Float64,1)],12594)
 		for y in s
 			if y != 12594
 				ygold = sparsevec([y],[map(Float64,1)],12594)
-		        ypred = sforw(f, x)
-				m = findmax(to_host(ypred),1)[2] % length(int2word) + 1
+		        ypred = sforw(f, word, x)
+				word = ypred
+				m = findmax(to_host(ypred),1)[2] % length(int2word)
 				sent = string(sent, int2word[m[1]], " ")
 		        # @show (hash(x),hash(ygold),vecnorm0(ypred))
 				l = loss(ypred,ygold)
@@ -158,7 +220,7 @@ function test(f, data, loss, int2word; gcheck=false)
 			else
 				gcheck && return sumloss
 				reset_tst!(f; keepstate=true)
-				continue
+				break
 			end
 		end
 		@show sent
