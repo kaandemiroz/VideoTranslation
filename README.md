@@ -22,3 +22,6 @@ These programs will create the necessary .jld files in your current workspace
 ###Run the translation script
 ######videotranslation.jl
 This file is the main code in which the translation occurs.
+
+###This project itself is an attempt at replicating the following paper:
+S. Venugopalan, H. Xu, J. Donahue, M. Rohrbach, R. Mooney, and K. Saenko. Translating videos to natural language using deep recurrent neural networks. arXiv preprint arXiv:1412.4729v3, 2015.
