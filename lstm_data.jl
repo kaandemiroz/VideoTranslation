@@ -39,9 +39,9 @@ function main()
 	xval = transpose( readdlm(xval_path, ',', '\n'; use_mmap = true) )
 
 	# Parse y data by using the dictionary
-	ytrn = readdlm(ytrn_path; use_mmap = true)
-	ytst = readdlm(ytst_path; use_mmap = true)
-	yval = readdlm(yval_path; use_mmap = true)
+	sents_trn = readdlm(ytrn_path; use_mmap = true)
+	sents_tst = readdlm(ytst_path; use_mmap = true)
+	sents_val = readdlm(yval_path; use_mmap = true)
 
 	info("ytrn...")
 	# ytrn = Array(Any,1200)
@@ -58,8 +58,10 @@ function main()
 	# end
 	# ytrn[lastVid] = data
 
-	for i = 1:size(ytrn,1)
-		ytrn[i,1] = parse(Int,lstrip(ytrn[i,1], ['v','i','d'])) - 1200
+	ytrn = Array( Int32, size(sents_trn,2), size(sents_trn,1) )
+	for i = 1:size(ytrn,2)
+		ytrn[1,i] = parse(Int,lstrip(sents_trn[i,1], ['v','i','d']))
+		ytrn[2:end,i] = [word2int[string(word)] for word in sents_trn[i,2:end]]
 	end
 
 	# ytrn = Array(Any,1200)
@@ -91,8 +93,10 @@ function main()
 	# end
 	# ytst[lastVid] = data
 
-	for i = 1:size(ytst,1)
-		ytst[i,1] = parse(Int,lstrip(ytst[i,1], ['v','i','d'])) - 1200
+	ytst = Array( Int32, size(sents_tst,2), size(sents_tst,1) )
+	for i = 1:size(ytst,2)
+		ytst[1,i] = parse(Int,lstrip(sents_tst[i,1], ['v','i','d'])) - 1300
+		ytst[2:end,i] = [word2int[string(word)] for word in sents_tst[i,2:end]]
 	end
 
 	# ytst = Array(Any,670)
@@ -124,8 +128,10 @@ function main()
 	# end
 	# yval[lastVid] = data
 
-	for i = 1:size(yval,1)
-		yval[i,1] = parse(Int,lstrip(yval[i,1], ['v','i','d'])) - 1200
+	yval = Array( Int32, size(sents_val,2), size(sents_val,1) )
+	for i = 1:size(yval,2)
+		yval[1,i] = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
+		yval[2:end,i] = [word2int[string(word)] for word in sents_val[i,2:end]]
 	end
 
 	# yval = Array(Any,100)
@@ -142,35 +148,35 @@ function main()
 	# 	end
 	# end
 
-	info("Preparing Flickr30k Data & Vocabulary...")
+	# info("Preparing Flickr30k Data & Vocabulary...")
 
-	word2intf = Dict{Any,Int32}()
-	fdesc = Dict{Any,Any}()
-	open(fdesc_path) do f
-	data = Any[]
-		for l in eachline(f)
-			seq = Int32[]
-			s = split(l,'\t')
-			num = parse(Int,s[2]) + 1
-			for w in split(s[3])
-				push!(seq, get!(word2intf, w, 1+length(word2intf)))
-			end
-			push!(data,seq)
-			if num == 5
-				fdesc[s[1]] = data
-				data = Any[]
-			end
-		end
-	end
-
-	int2wordf = Array(Any,length(word2intf))
-	for m in keys(word2intf)
-		int2wordf[word2intf[m]] = m
-	end
+	# word2intf = Dict{Any,Int32}()
+	# fdesc = Dict{Any,Any}()
+	# open(fdesc_path) do f
+	# data = Any[]
+	# 	for l in eachline(f)
+	# 		seq = Int32[]
+	# 		s = split(l,'\t')
+	# 		num = parse(Int,s[2]) + 1
+	# 		for w in split(s[3])
+	# 			push!(seq, get!(word2intf, w, 1+length(word2intf)))
+	# 		end
+	# 		push!(data,seq)
+	# 		if num == 5
+	# 			fdesc[s[1]] = data
+	# 			data = Any[]
+	# 		end
+	# 	end
+	# end
+	#
+	# int2wordf = Array(Any,length(word2intf))
+	# for m in keys(word2intf)
+	# 	int2wordf[word2intf[m]] = m
+	# end
 
 	info("Saving Data...")
 
-	JLD.save("lstm_data.jld", "word2int", word2int, "int2word", int2word, "word2intf", word2intf, "int2wordf", int2wordf, "xtrn", xtrn, "xtst", xtst, "xval", xval, "ytrn", ytrn, "ytst", ytst, "yval", yval, "fdesc", fdesc )
+	JLD.save("lstm_data.jld", "word2int", word2int, "int2word", int2word, "xtrn", xtrn, "xtst", xtst, "xval", xval, "ytrn", ytrn, "ytst", ytst, "yval", yval )
 
 end
 

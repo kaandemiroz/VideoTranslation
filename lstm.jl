@@ -5,8 +5,9 @@ using JLD
     y1 = wdot(x1; o...)
     y2 = wdot(x2; o...)
     y3 = wdot(x3; o...)
-    x4 = add(y3,y2,y1)
-    y4 = bias(x4; o...)
+    x4 = add(y2,y1)
+	x5 = add(x4,y3)
+    y4 = bias(x5; o...)
     return f(y4; o...)
 end
 
