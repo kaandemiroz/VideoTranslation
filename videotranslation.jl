@@ -5,7 +5,7 @@ function main()
 	info("initializing...")
 	imageSize = 224
 	nepochs = 100
-	batchsize = 1
+	batchsize = 10
 	lr = 0.01
 
 	# Load VGG-16 Model
@@ -98,13 +98,10 @@ function trainLSTMYT(lstm, lr, nepochs, batchsize)
 	l = zeros(2); m = zeros(2)
 
 	for epoch = 1:nepochs
-		# for i = 1:batchsize:length(yval)
-		# 	train(lstm, (xval[:,i:i+batchsize-1], yval[i:i+batchsize-1]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-		# 	test(lstm, (xval[:,i:i+batchsize-1], yval[i:i+batchsize-1]), softloss, int2word)
-		# end
+		print("epoch: $epoch\n")
 		for i = 1:batchsize:length(yval)
-			train(lstm, (xval[:,yval[1,i]], yval[2:end,i]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-			test(lstm, (xval[:,yval[1,i]], yval[2:end,i]), softloss, int2word)
+			train(lstm, (xval[:,collect(yval[1,i:i+batchsize-1])], yval[2:end,i:i+batchsize-1]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+			test(lstm, (xval[:,collect(yval[1,i:i+batchsize-1])], yval[2:end,i:i+batchsize-1]), softloss, int2word)
 		end
 	end
 
@@ -142,35 +139,34 @@ function train(f, data, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=no
 	info("training...")
 	reset_trn!(f)
     ystack = Any[]
-	x = data[1]
-	word = sparsevec([1],[map(Float64,1)],12594)
-    for y in data[2]
-		if y != 12594
-			ygold = sparsevec([y],[map(Float64,1)],12594)
-		    ypred = sforw(f, x, word)
-			word = ygold
-		    # Knet.netprint(f); error(:ok)
-		    losscnt != nothing && (losscnt[1] += loss(ypred, ygold); losscnt[2] += 1)
-		    push!(ystack, copy(ygold))
-		else
-			while !isempty(ystack)
-				ygold = pop!(ystack)
-				sback(f, ygold, loss)
-			end
-			#error(:ok)
-			gcheck && break # return losscnt[1] leave the loss calculation to test # the parameter gradients are cumulative over the whole sequence
-			g = (gclip > 0 || maxnorm!=nothing ? gnorm(f) : 0)
-			# global _update_dbg; _update_dbg +=1; _update_dbg > 1 && error(:ok)
-			update!(f; gscale=(g > gclip > 0 ? gclip/g : 1))
-			if maxnorm != nothing
-				w=wnorm(f)
-				w > maxnorm[1] && (maxnorm[1]=w)
-				g > maxnorm[2] && (maxnorm[2]=g)
-			end
-			reset_trn!(f)
-			break
-		end
+	(x, s) = data
+	batchsize = size(s,2)
+	words = sparse(map(Int64,ones(batchsize)),collect(1:batchsize),ones(batchsize),12594,batchsize)
+	for i = 1:size(s,1)
+		y = map(Float64,s[i,:])
+		ygold = sparse(map(Int64,collect(y)),collect(1:batchsize),ones(batchsize),12594,batchsize)
+		ypred = sforw(f, x, words)
+		words = ygold
+		# Knet.netprint(f); error(:ok)
+		losscnt != nothing && (losscnt[1] += loss(ypred, ygold; mask = mask(ygold)); losscnt[2] += 1)
+		push!(ystack, copy(ygold))
     end
+
+	while !isempty(ystack)
+		ygold = pop!(ystack)
+		sback(f, ygold, loss; mask = mask(ygold))
+	end
+	#error(:ok)
+	gcheck && return # return losscnt[1] leave the loss calculation to test # the parameter gradients are cumulative over the whole sequence
+	g = (gclip > 0 || maxnorm!=nothing ? gnorm(f) : 0)
+	# global _update_dbg; _update_dbg +=1; _update_dbg > 1 && error(:ok)
+	update!(f; gscale=(g > gclip > 0 ? gclip/g : 1))
+	if maxnorm != nothing
+		w=wnorm(f)
+		w > maxnorm[1] && (maxnorm[1]=w)
+		g > maxnorm[2] && (maxnorm[2]=g)
+	end
+	reset_trn!(f)
     # losscnt[1]/losscnt[2]       # this will give per-token loss, should we do per-sequence instead?
 end
 
@@ -178,26 +174,25 @@ function test(f, data, loss, int2word; gcheck=false)
     info("testing...")
     sumloss = numloss = 0.0
     reset_tst!(f)
-	x = data[1]
+	(x, s) = data
+	batchsize = size(s,2)
 	sent = ""
-	word = sparsevec([1],[map(Float64,1)],12594)
-    for y in data[2]
-		if y != 12594
-			ygold = sparsevec([y],[map(Float64,1)],12594)
-		    ypred = sforw(f, x, word)
-			word = ypred
-			m = findmax(to_host(ypred),1)[2] % length(int2word)
-			sent = string(sent, int2word[m[1]], " ")
-		    # @show (hash(x),hash(ygold),vecnorm0(ypred))
-			l = loss(ypred,ygold)
-		    sumloss += l
-		    numloss += 1
-		else
-			gcheck && return sumloss
-			reset_tst!(f; keepstate=true)
-			break
-		end
+	words = sparse(map(Int64,ones(batchsize)),collect(1:batchsize),ones(batchsize),12594,batchsize)
+	for i = 1:size(s,1)
+		y = s[i,:]
+		ygold = sparse(map(Int64,collect(y)),collect(1:batchsize),ones(batchsize),12594,batchsize)
+		ypred = sforw(f, x, words)
+		words = ypred
+		m = findmax(to_host(ypred),1)[2] % length(int2word)
+		m[1] = (m[1] == 0 ? 12594 : m[1])
+		sent = string(sent, int2word[m[1]], " ")
+		# @show (hash(x),hash(ygold),vecnorm0(ypred))
+		l = loss(ypred,ygold; mask = mask(ygold))
+		sumloss += l
+		numloss += 1
     end
+	gcheck && return sumloss
+	reset_tst!(f; keepstate=true)
 	@show sent
 	@show sumloss/numloss
     return sumloss/numloss

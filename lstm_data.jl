@@ -44,109 +44,25 @@ function main()
 	sents_val = readdlm(yval_path; use_mmap = true)
 
 	info("ytrn...")
-	# ytrn = Array(Any,1200)
-	# lastVid = 1
-	# data = Any[]
-	# for i = 1:size(sents_trn,1)
-	# 	vid = parse(Int,lstrip(sents_trn[i,1], ['v','i','d']))
-	# 	push!(data, [word2int[string(word)] for word in sents_trn[i,2:46] ] )
-	# 	if vid != lastVid
-	# 		ytrn[lastVid] = data
-	# 		data = Any[]
-	# 	end
-	# 	lastVid = vid
-	# end
-	# ytrn[lastVid] = data
-
 	ytrn = Array( Int32, size(sents_trn,2), size(sents_trn,1) )
 	for i = 1:size(ytrn,2)
 		ytrn[1,i] = parse(Int,lstrip(sents_trn[i,1], ['v','i','d']))
 		ytrn[2:end,i] = [word2int[string(word)] for word in sents_trn[i,2:end]]
 	end
 
-	# ytrn = Array(Any,1200)
-	# open(ytrn_path) do f
-	# 	for l in eachline(f)
-	# 		data = Int32[]
-	# 		s = split(l,'\t')
-	# 		vid = parse(Int,lstrip(s[1], ['v','i','d']))
-	# 		for w in split(s[2])
-	# 			push!(data, word2int[w])
-	# 		end
-	# 		push!(data,word2int["<eos>"])
-	# 		ytrn[vid] = data
-	# 	end
-	# end
-
 	info("ytst...")
-	# ytst = Array(Any,670)
-	# lastVid = 1
-	# data = Any[]
-	# for i = 1:size(sents_tst,1)
-	# 	vid = parse(Int,lstrip(sents_tst[i,1], ['v','i','d'])) - 1300
-	# 	push!(data, [word2int[string(word)] for word in sents_tst[i,2:42] ] )
-	# 	if vid != lastVid
-	# 		ytst[lastVid] = data
-	# 		data = Any[]
-	# 	end
-	# 	lastVid = vid
-	# end
-	# ytst[lastVid] = data
-
 	ytst = Array( Int32, size(sents_tst,2), size(sents_tst,1) )
 	for i = 1:size(ytst,2)
 		ytst[1,i] = parse(Int,lstrip(sents_tst[i,1], ['v','i','d'])) - 1300
 		ytst[2:end,i] = [word2int[string(word)] for word in sents_tst[i,2:end]]
 	end
 
-	# ytst = Array(Any,670)
-	# open(ytst_path) do f
-	# 	for l in eachline(f)
-	# 		data = Int32[]
-	# 		s = split(l,'\t')
-	# 		vid = parse(Int,lstrip(s[1], ['v','i','d'])) - 1300
-	# 		for w in split(s[2])
-	# 			push!(data, word2int[w])
-	# 		end
-	# 		push!(data,word2int["<eos>"])
-	# 		ytst[vid] = data
-	# 	end
-	# end
-
 	info("yval...")
-	# yval = Array(Any,100)
-	# lastVid = 1
-	# data = Any[]
-	# for i = 1:size(sents_val,1)
-	# 	vid = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
-	# 	push!(data, [word2int[string(word)] for word in sents_val[i,2:28] ])
-	# 	if vid != lastVid
-	# 		yval[lastVid] = data
-	# 		data = Any[]
-	# 	end
-	# 	lastVid = vid
-	# end
-	# yval[lastVid] = data
-
 	yval = Array( Int32, size(sents_val,2), size(sents_val,1) )
 	for i = 1:size(yval,2)
 		yval[1,i] = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
 		yval[2:end,i] = [word2int[string(word)] for word in sents_val[i,2:end]]
 	end
-
-	# yval = Array(Any,100)
-	# open(yval_path) do f
-	# 	for l in eachline(f)
-	# 		data = Int32[]
-	# 		s = split(l,'\t')
-	# 		vid = parse(Int,lstrip(s[1], ['v','i','d'])) - 1200
-	# 		for w in split(s[2])
-	# 			push!(data, word2int[w])
-	# 		end
-	# 		push!(data,word2int["<eos>"])
-	# 		yval[vid] = data
-	# 	end
-	# end
 
 	# info("Preparing Flickr30k Data & Vocabulary...")
 
@@ -181,3 +97,35 @@ function main()
 end
 
 main()
+
+
+
+# Old parsing code for reference
+
+# yval = Array(Any,100)
+# lastVid = 1
+# data = Any[]
+# for i = 1:size(sents_val,1)
+# 	vid = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
+# 	push!(data, [word2int[string(word)] for word in sents_val[i,2:28] ])
+# 	if vid != lastVid
+# 		yval[lastVid] = data
+# 		data = Any[]
+# 	end
+# 	lastVid = vid
+# end
+# yval[lastVid] = data
+
+# yval = Array(Any,100)
+# open(yval_path) do f
+# 	for l in eachline(f)
+# 		data = Int32[]
+# 		s = split(l,'\t')
+# 		vid = parse(Int,lstrip(s[1], ['v','i','d'])) - 1200
+# 		for w in split(s[2])
+# 			push!(data, word2int[w])
+# 		end
+# 		push!(data,word2int["<eos>"])
+# 		yval[vid] = data
+# 	end
+# end
