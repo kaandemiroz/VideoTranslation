@@ -16,11 +16,6 @@ function main()
 	# ctrn_json = JSON.parsefile("lstm_data/captions_train2014.json"; use_mmap=true)
 	# cval_json = JSON.parsefile("lstm_data/captions_val2014.json"; use_mmap=true)
 
-	sents_trn = readdlm(ytrn_path; use_mmap = true)
-	sents_tst = readdlm(ytst_path; use_mmap = true)
-	sents_val = readdlm(yval_path; use_mmap = true)
-
-
 	info("Preparing YouTube Vocabulary...")
 
 	# Load caption vocabulary
@@ -43,21 +38,29 @@ function main()
 	xtst = transpose( readdlm(xtst_path, ',', '\n'; use_mmap = true) )
 	xval = transpose( readdlm(xval_path, ',', '\n'; use_mmap = true) )
 
-	info("ytrn...")
 	# Parse y data by using the dictionary
-	ytrn = Array(Any,1200)
-	lastVid = 1
-	data = Any[]
-	for i = 1:size(sents_trn,1)
-		vid = parse(Int,lstrip(sents_trn[i,1], ['v','i','d']))
-		push!(data, [word2int[string(word)] for word in sents_trn[i,2:46] ] )
-		if vid != lastVid
-			ytrn[lastVid] = data
-			data = Any[]
-		end
-		lastVid = vid
+	ytrn = readdlm(ytrn_path; use_mmap = true)
+	ytst = readdlm(ytst_path; use_mmap = true)
+	yval = readdlm(yval_path; use_mmap = true)
+
+	info("ytrn...")
+	# ytrn = Array(Any,1200)
+	# lastVid = 1
+	# data = Any[]
+	# for i = 1:size(sents_trn,1)
+	# 	vid = parse(Int,lstrip(sents_trn[i,1], ['v','i','d']))
+	# 	push!(data, [word2int[string(word)] for word in sents_trn[i,2:46] ] )
+	# 	if vid != lastVid
+	# 		ytrn[lastVid] = data
+	# 		data = Any[]
+	# 	end
+	# 	lastVid = vid
+	# end
+	# ytrn[lastVid] = data
+
+	for i = 1:size(ytrn,1)
+		ytrn[i,1] = parse(Int,lstrip(ytrn[i,1], ['v','i','d'])) - 1200
 	end
-	ytrn[lastVid] = data
 
 	# ytrn = Array(Any,1200)
 	# open(ytrn_path) do f
@@ -74,19 +77,23 @@ function main()
 	# end
 
 	info("ytst...")
-	ytst = Array(Any,670)
-	lastVid = 1
-	data = Any[]
-	for i = 1:size(sents_tst,1)
-		vid = parse(Int,lstrip(sents_tst[i,1], ['v','i','d'])) - 1300
-		push!(data, [word2int[string(word)] for word in sents_tst[i,2:42] ] )
-		if vid != lastVid
-			ytst[lastVid] = data
-			data = Any[]
-		end
-		lastVid = vid
+	# ytst = Array(Any,670)
+	# lastVid = 1
+	# data = Any[]
+	# for i = 1:size(sents_tst,1)
+	# 	vid = parse(Int,lstrip(sents_tst[i,1], ['v','i','d'])) - 1300
+	# 	push!(data, [word2int[string(word)] for word in sents_tst[i,2:42] ] )
+	# 	if vid != lastVid
+	# 		ytst[lastVid] = data
+	# 		data = Any[]
+	# 	end
+	# 	lastVid = vid
+	# end
+	# ytst[lastVid] = data
+
+	for i = 1:size(ytst,1)
+		ytst[i,1] = parse(Int,lstrip(ytst[i,1], ['v','i','d'])) - 1200
 	end
-	ytst[lastVid] = data
 
 	# ytst = Array(Any,670)
 	# open(ytst_path) do f
@@ -103,19 +110,23 @@ function main()
 	# end
 
 	info("yval...")
-	yval = Array(Any,100)
-	lastVid = 1
-	data = Any[]
-	for i = 1:size(sents_val,1)
-		vid = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
-		push!(data, [word2int[string(word)] for word in sents_val[i,2:28] ])
-		if vid != lastVid
-			yval[lastVid] = data
-			data = Any[]
-		end
-		lastVid = vid
+	# yval = Array(Any,100)
+	# lastVid = 1
+	# data = Any[]
+	# for i = 1:size(sents_val,1)
+	# 	vid = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
+	# 	push!(data, [word2int[string(word)] for word in sents_val[i,2:28] ])
+	# 	if vid != lastVid
+	# 		yval[lastVid] = data
+	# 		data = Any[]
+	# 	end
+	# 	lastVid = vid
+	# end
+	# yval[lastVid] = data
+
+	for i = 1:size(yval,1)
+		yval[i,1] = parse(Int,lstrip(yval[i,1], ['v','i','d'])) - 1200
 	end
-	yval[lastVid] = data
 
 	# yval = Array(Any,100)
 	# open(yval_path) do f
