@@ -98,11 +98,13 @@ function trainLSTMYT(lstm, lr, nepochs, batchsize)
 	l = zeros(2); m = zeros(2)
 
 	for epoch = 1:nepochs
-		print("epoch: $epoch\n")
-		for i = 1:batchsize:length(yval)
+		for i = 1:batchsize:size(yval,2)
+			info("epoch: $epoch\n")
+			info("batch: $(ceil(i/batchsize)) of $(ceil(size(yval,2)/batchsize))\n")
 			train(lstm, (xval[:,collect(yval[1,i:i+batchsize-1])], yval[2:end,i:i+batchsize-1]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
 			test(lstm, (xval[:,collect(yval[1,i:i+batchsize-1])], yval[2:end,i:i+batchsize-1]), softloss, int2word)
 		end
+		gc()
 	end
 
 end
@@ -115,23 +117,9 @@ function reset_tst!(f; keepstate=false)
     end
 end
 
-function seqbatch(seq, dict, batchsize)
-    data = Any[]
-    T = div(length(seq), batchsize)
-    for t=1:T
-        d=zeros(Float32, length(dict), batchsize)
-        for b=1:batchsize
-            c = dict[seq[t + (b-1) * T]]
-            d[c,b] = 1
-        end
-        push!(data, d)
-    end
-    return data
-end
-
 function mask(ybatch)
-	mask = ones(Cuchar, length(ybatch))
-	mask[find(ybatch .== 12594)] = 0
+	mask = ones(Cuchar, size(ybatch,2))
+	mask[find(ybatch[12594,:] .== 1)] = 0
 	return mask
 end
 
