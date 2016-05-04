@@ -4,8 +4,8 @@ using Knet: regs, getp, setp, stack_length, stack_empty!, params
 function main()
 	info("initializing...")
 	imageSize = 224
-	nepochs = 100
-	batchsize = 10
+	nepochs = 30
+	batchsize = 20
 	lr = 0.01
 
 	# Load VGG-16 Model
@@ -101,8 +101,8 @@ function trainLSTMYT(lstm, lr, nepochs, batchsize)
 		for i = 1:batchsize:size(yval,2)
 			info("epoch: $epoch\n")
 			info("batch: $(ceil(i/batchsize)) of $(ceil(size(yval,2)/batchsize))\n")
-			train(lstm, (xval[:,collect(yval[1,i:i+batchsize-1])], yval[2:end,i:i+batchsize-1]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-			test(lstm, (xval[:,collect(yval[1,i:i+batchsize-1])], yval[2:end,i:i+batchsize-1]), softloss, int2word)
+			train(lstm, (xval[:,collect(yval[1,i:min(i+batchsize-1,size(yval,2))])], yval[2:end,i:min(i+batchsize-1,size(yval,2))]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+			test(lstm, (xval[:,collect(yval[1,i:min(i+batchsize-1,size(yval,2))])], yval[2:end,i:min(i+batchsize-1,size(yval,2))]), softloss, int2word)
 		end
 		gc()
 	end
