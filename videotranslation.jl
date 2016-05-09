@@ -5,7 +5,7 @@ function main()
 	info("initializing...")
 	imageSize = 224
 	nepochs = 20
-	batchsize = 100
+	batchsize = 20
 	lr = 0.01
 
 	# Load VGG-16 Model
@@ -100,7 +100,7 @@ function trainLSTMYT(lstm, lr, nepochs, batchsize)
 	l = zeros(2); m = zeros(2)
 
 	for epoch = 1:nepochs
-		info("epoch: $epoch\n")
+		print("epoch: $epoch\n")
 		train(lstm, (xtrn, ytrn), idx, batchsize, softloss, gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
 		test(lstm, (xtrn, ytrn), idx, batchsize, softloss, int2word)
 	end
@@ -128,7 +128,7 @@ function train(f, data, idx, batchsize, loss; gcheck=false, gclip=0, maxnorm=not
 	(xtrn, ytrn) = data
 
 	for i = 1:batchsize:size(ytrn,2)-batchsize
-		info("batch: $(ceil(i/batchsize)) of $(ceil(size(ytrn,2)/batchsize))\n")
+		print("batch: $(ceil(i/batchsize)) of $(ceil(size(ytrn,2)/batchsize))\n")
 		x = xtrn[:,collect(ytrn[1,idx[i:min(i+batchsize-1,size(ytrn,2))]])]
 		s = ytrn[2:end,idx[i:min(i+batchsize-1,size(ytrn,2))]]
 
@@ -158,7 +158,6 @@ function train(f, data, idx, batchsize, loss; gcheck=false, gclip=0, maxnorm=not
 			g > maxnorm[2] && (maxnorm[2]=g)
 		end
 		reset_trn!(f)
-
 	end
 	# losscnt[1]/losscnt[2]       # this will give per-token loss, should we do per-sequence instead?
 end
@@ -170,7 +169,7 @@ function test(f, data, idx, batchsize, loss, int2word; gcheck=false)
 	(xtrn, ytrn) = data
 
 	for i = 1:batchsize:size(ytrn,2)-batchsize
-		info("batch: $(ceil(i/batchsize)) of $(ceil(size(ytrn,2)/batchsize))\n")
+		print("batch: $(ceil(i/batchsize)) of $(ceil(size(ytrn,2)/batchsize))\n")
 		x = xtrn[:,collect(ytrn[1,idx[i:min(i+batchsize-1,size(ytrn,2))]])]
 		s = ytrn[2:end,idx[i:min(i+batchsize-1,size(ytrn,2))]]
 
@@ -179,7 +178,7 @@ function test(f, data, idx, batchsize, loss, int2word; gcheck=false)
 		for i = 1:size(s,1)
 			y = s[i,:]
 			ygold = sparse(map(Int64,collect(y)),collect(1:batchsize),ones(batchsize),12594,batchsize)
-			ypred = sforw(f, x, words)
+			ypred = forw(f, x, words)
 			words = ypred
 			m = findmax(to_host(ypred),1)[2] % length(int2word)
 			m[1] = (m[1] == 0 ? 12594 : m[1])
@@ -191,11 +190,10 @@ function test(f, data, idx, batchsize, loss, int2word; gcheck=false)
 	    end
 		gcheck && return sumloss
 		reset_tst!(f; keepstate=true)
-		@show sent
-
+		print("sent = $sent\n")
 	end
 
-	@show sumloss/numloss
+	print("sumloss / numloss = $(sumloss/numloss)\n")
     return sumloss/numloss
 end
 
