@@ -4,8 +4,8 @@ using Knet: regs, getp, setp, stack_length, stack_empty!, params
 function main()
 	info("initializing...")
 	imageSize = 224
-	nepochs = 30
-	batchsize = 20
+	nepochs = 20
+	batchsize = 100
 	lr = 0.01
 
 	# Load VGG-16 Model
@@ -31,7 +31,7 @@ function main()
 
 	# sent = "";
 	# for i = 1:27
-	# 	ypred = to_host(sforw(lstm, xval[i,:] ))
+	# 	ypred = to_host(sforw(lstm, xtrn[i,:] ))
 	# 	m = findmax(ypred,1)[2] % length(int2word)
 	# 	sent = string(sent, int2word[m[1]], " ")
 	# end
@@ -77,9 +77,9 @@ function trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
 			setp(lstm; lr = lr)
 			l = zeros(2); m = zeros(2)
 
-			xval = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
-			train(lstm, (xval[:,1], fdesc[imgName]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-			test(lstm, (xval[:,1], fdesc[imgName]), softloss, int2wordf)
+			xtrn = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
+			train(lstm, (xtrn[:,1], fdesc[imgName]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+			test(lstm, (xtrn[:,1], fdesc[imgName]), softloss, int2wordf)
 		end
 
 	end
@@ -91,20 +91,21 @@ function trainLSTMYT(lstm, lr, nepochs, batchsize)
 	# # Load caption vocabulary
 	word2int = JLD.load("lstm_data.jld","word2int")
 	int2word = JLD.load("lstm_data.jld","int2word")
-	xval = JLD.load("lstm_data.jld","xval")
-	yval = JLD.load("lstm_data.jld","yval")
+	xtrn = JLD.load("lstm_data.jld","xtrn")
+	ytrn = JLD.load("lstm_data.jld","ytrn")
+
+	idx = shuffle(collect(1:size(ytrn,2)))
 
 	setp(lstm; lr = lr)
 	l = zeros(2); m = zeros(2)
 
 	for epoch = 1:nepochs
-		for i = 1:batchsize:size(yval,2)
+		for i = 1:batchsize:size(ytrn,2)-batchsize
 			info("epoch: $epoch\n")
-			info("batch: $(ceil(i/batchsize)) of $(ceil(size(yval,2)/batchsize))\n")
-			train(lstm, (xval[:,collect(yval[1,i:min(i+batchsize-1,size(yval,2))])], yval[2:end,i:min(i+batchsize-1,size(yval,2))]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-			test(lstm, (xval[:,collect(yval[1,i:min(i+batchsize-1,size(yval,2))])], yval[2:end,i:min(i+batchsize-1,size(yval,2))]), softloss, int2word)
+			info("batch: $(ceil(i/batchsize)) of $(ceil(size(ytrn,2)/batchsize))\n")
+			train(lstm, (xtrn[:,collect(ytrn[1,idx[i:min(i+batchsize-1,size(ytrn,2))]])], ytrn[2:end,idx[i:min(i+batchsize-1,size(ytrn,2))]]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+			test(lstm, (xtrn[:,collect(ytrn[1,idx[i:min(i+batchsize-1,size(ytrn,2))]])], ytrn[2:end,idx[i:min(i+batchsize-1,size(ytrn,2))]]), softloss, int2word)
 		end
-		gc()
 	end
 
 end
