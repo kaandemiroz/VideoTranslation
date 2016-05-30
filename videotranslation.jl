@@ -29,6 +29,8 @@ function main()
 
 	trainLSTMYT(lstm, lr, nepochs, batchsize)
 
+	JLD.save("lstm_trained2.jld","model",clean(lstm))
+
 	# sent = "";
 	# for i = 1:27
 	# 	ypred = to_host(sforw(lstm, xtrn[i,:] ))
@@ -129,6 +131,7 @@ function train(f, data, idx, batchsize, loss; gcheck=false, gclip=0, maxnorm=not
 
 	for i = 1:batchsize:size(ytrn,2)-batchsize
 		print("batch: $(ceil(i/batchsize)) of $(ceil(size(ytrn,2)/batchsize))\n")
+		flush(STDOUT)
 		x = xtrn[:,collect(ytrn[1,idx[i:min(i+batchsize-1,size(ytrn,2))]])]
 		s = ytrn[2:end,idx[i:min(i+batchsize-1,size(ytrn,2))]]
 
@@ -191,6 +194,7 @@ function test(f, data, idx, batchsize, loss, int2word; gcheck=false)
 		gcheck && return sumloss
 		reset_tst!(f; keepstate=true)
 		print("sent = $sent\n")
+		flush(STDOUT)
 	end
 
 	print("sumloss / numloss = $(sumloss/numloss)\n")

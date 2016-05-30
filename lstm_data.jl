@@ -11,11 +11,6 @@ function main()
 	yval_path = "lstm_data/sents_val_lc_nopunc.txt"
 	fdesc_path = "lstm_data/results_20130124.token"
 
-	# info("Reading COCO2014 JSON...")
-	#
-	# ctrn_json = JSON.parsefile("lstm_data/captions_train2014.json"; use_mmap=true)
-	# cval_json = JSON.parsefile("lstm_data/captions_val2014.json"; use_mmap=true)
-
 	info("Preparing YouTube Vocabulary...")
 
 	# Load caption vocabulary
@@ -42,6 +37,7 @@ function main()
 	sents_trn = readdlm(ytrn_path; use_mmap = true)
 	sents_tst = readdlm(ytst_path; use_mmap = true)
 	sents_val = readdlm(yval_path; use_mmap = true)
+	sents_fdesc = readdlm(fdesc_path; use_mmap = true);
 
 	info("ytrn...")
 	ytrn = Array( Int32, size(sents_trn,2), size(sents_trn,1) )
@@ -64,30 +60,38 @@ function main()
 		yval[2:end,i] = [word2int[string(word)] for word in sents_val[i,2:end]]
 	end
 
-	# info("Preparing Flickr30k Data & Vocabulary...")
+	info("Preparing Flickr30k Data & Vocabulary...")
 
-	# word2intf = Dict{Any,Int32}()
-	# fdesc = Dict{Any,Any}()
-	# open(fdesc_path) do f
-	# data = Any[]
-	# 	for l in eachline(f)
-	# 		seq = Int32[]
-	# 		s = split(l,'\t')
-	# 		num = parse(Int,s[2]) + 1
-	# 		for w in split(s[3])
-	# 			push!(seq, get!(word2intf, w, 1+length(word2intf)))
-	# 		end
-	# 		push!(data,seq)
-	# 		if num == 5
-	# 			fdesc[s[1]] = data
-	# 			data = Any[]
-	# 		end
-	# 	end
-	# end
+	punc = ".,',:!?()[]{}<>^+\$%½&/=*-_"
+
+	word2intf = copy(word2int)
+	fnames = Any[]
+	fdesc = Array( Int32, size(sents_fdesc,2) - 1, size(sents_fdesc,1) )
+	index = 0
+	for i = 1:size(fdesc,2)
+		if sents_fdesc[i,2] == 0
+			index = index + 1
+			push!(fnames, sents_fdesc[i,1])
+		end
+		fdesc[1,i] = index
+		fdesc[2:end,i] = [get!(word2intf, lowercase(string(word)), 1+length(word2intf)) for word in sents_fdesc[i,3:end]]
+	end
+
+	# sents_fdesc[1,2+find(x -> x == "" || !contains(punc,x), sents_fdesc[1,3:end])]
+
+	int2wordf = Array(Any,length(word2intf))
+	for m in keys(word2intf)
+		int2wordf[word2intf[m]] = m
+	end
+
+	# info("Reading COCO2014 JSON...")
 	#
-	# int2wordf = Array(Any,length(word2intf))
-	# for m in keys(word2intf)
-	# 	int2wordf[word2intf[m]] = m
+	# ctrn_json = JSON.parsefile("lstm_data/captions_train2014.json"; use_mmap=true)
+	# cval_json = JSON.parsefile("lstm_data/captions_val2014.json"; use_mmap=true)
+	#
+	# cval_names = Dict{Int32,Any}()
+	# for json in cval_json["images"]
+	# 	get!(cval_names, json["id"], json["file_name"])
 	# end
 
 	info("Saving Data...")
@@ -128,4 +132,28 @@ main()
 # 		push!(data,word2int["<eos>"])
 # 		yval[vid] = data
 # 	end
+# end
+
+# word2intf = Dict{Any,Int32}()
+# fdesc = Dict{Any,Any}()
+# open(fdesc_path) do f
+# 	data = Any[]
+# 	for l in eachline(f)
+# 		seq = Int32[]
+# 		s = split(l,'\t')
+# 		num = parse(Int,s[2]) + 1
+# 		for w in split(s[3])
+# 			push!(seq, get!(word2intf, w, 1+length(word2intf)))
+# 		end
+# 		push!(data,seq)
+# 		if num == 5
+# 			fdesc[s[1]] = data
+# 			data = Any[]
+# 		end
+# 	end
+# end
+#
+# int2wordf = Array(Any,length(word2intf))
+# for m in keys(word2intf)
+# 	int2wordf[word2intf[m]] = m
 # end
