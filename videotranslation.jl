@@ -9,27 +9,50 @@ function main()
 	lr = 0.01
 
 	# Load VGG-16 Model
-	vgg16 = JLD.load("vgg16.jld", "model")
-	# Load the LSTM Model
-	lstm = JLD.load("lstm.jld", "model")
+	global vgg16 = JLD.load("vgg16.jld", "model")
 
-	model = 1
+	model = 2
 
 	if model == 2
-		trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
+		# Load the LSTM Model
+		global lstm = JLD.load("lstm.jld", "lstmYTFlickr")
+		# Load caption vocabulary
+		global word2int = JLD.load("flickr_data.jld","word2intFlickr")
+		global int2word = JLD.load("flickr_data.jld","int2wordFlickr")
+		trainLSTMFlickr(lstm, lr, imageSize, batchsize)
 		lr /= 2
 	elseif model == 3
-		# trainLSTMCOCO()
+		# Load the LSTM Model
+		global lstm = JLD.load("lstm.jld", "lstmYTCOCO")
+		# Load caption vocabulary
+		global word2int = JLD.load("coco_data.jld","word2intCOCO")
+		global int2word = JLD.load("coco_data.jld","int2wordCOCO")
+		global ctrn_desc = JLD.load("coco_data.jld","ctrn_descCOCO")
+		global cval_desc = JLD.load("coco_data.jld","cval_descCOCO")
+		trainLSTMCOCO(lstm, lr, imageSize, batchsize)
 		lr /= 2
 	elseif model == 4
-		trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
-		# trainLSTMCOCO()
+		# Load the LSTM Model
+		global lstm = JLD.load("lstm.jld", "lstmYTCOCOFlickr")
+		# Load caption vocabulary
+		global word2int = JLD.load("coco_data.jld","word2intCOCOFlickr")
+		global int2word = JLD.load("coco_data.jld","int2wordCOCOFlickr")
+		global ctrn_desc = JLD.load("coco_data.jld","ctrn_descCOCOFlickr")
+		global cval_desc = JLD.load("coco_data.jld","cval_descCOCOFlickr")
+		trainLSTMFlickr(lstm, lr, imageSize, batchsize)
+		trainLSTMCOCO(lstm, lr, imageSize, batchsize)
 		lr /= 2
+	else
+		# Load the LSTM Model
+		global lstm = JLD.load("lstm.jld", "lstmYT")
+		# Load caption vocabulary
+		global word2int = JLD.load("youtube_data.jld","word2int")
+		global int2word = JLD.load("youtube_data.jld","int2word")
 	end
 
 	trainLSTMYT(lstm, lr, nepochs, batchsize)
 
-	JLD.save("lstm_trained2.jld","model",clean(lstm))
+	JLD.save("lstm_trained2.jld", "model", clean(lstm))
 
 	# sent = "";
 	# for i = 1:27
@@ -42,24 +65,23 @@ function main()
 
 end
 
-function trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
+function trainLSTMFlickr(lstm, lr, imageSize, batchsize)
 	info("training with Flickr30k...")
 	fpath = "Flickr30k/flickr30k-images/"
-	fdesc = JLD.load("lstm_data.jld","fdesc")
-	word2intf = JLD.load("lstm_data.jld","word2intf")
-	int2wordf = JLD.load("lstm_data.jld","int2wordf")
+	fdesc = JLD.load("flickr_data.jld","fdesc")
 	key = ".jpg"
-	numbatches = 1#div(size(image_names,1), batchsize)
 	val = rand(1:length(fdesc),1000)
 
 	image_names = filter(x->contains(x,key), readdir(fpath))
+	numbatches = 1#div(size(image_names,1), batchsize)
+
 	for batch = 0:numbatches-1
 		#Initialize x matrix
 		x = zeros( imageSize, imageSize, 3, batchsize )
 
 		for i = 1:batchsize
 			index = batch * batchsize + i
-			print("$(index)\n")
+			info("batch: $(index)")
 			#Read image file
 			imgName = image_names[val[index]]
 			imgPath = "$(fpath)$(imgName)"
@@ -81,7 +103,51 @@ function trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
 
 			xtrn = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
 			train(lstm, (xtrn[:,1], fdesc[imgName]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-			test(lstm, (xtrn[:,1], fdesc[imgName]), softloss, int2wordf)
+			test(lstm, (xtrn[:,1], fdesc[imgName]), softloss, int2word)
+		end
+
+	end
+
+end
+
+function transLSTMCOCO(lstm, lr, imageSize, batchsize)
+	info("training with COCO2014...")
+	cpath = "COCO2014/val2014/"
+	key = ".jpg"
+	val = rand(1:length(fdesc),1000)
+
+	image_names = filter(x->contains(x,key), readdir(cpath))
+	numbatches = 1#div(size(image_names,1), batchsize)
+
+	for batch = 0:numbatches-1
+		#Initialize x matrix
+		x = zeros( imageSize, imageSize, 3, batchsize )
+
+		for i = 1:batchsize
+			index = batch * batchsize + i
+			info("batch: $(index)")
+			#Read image file
+			imgName = image_names[val[index]]
+			imgPath = "$(fpath)$(imgName)"
+			img = load(imgPath)
+			#Resize image to 224x224
+			img = Images.imresize(img, (imageSize, imageSize))
+
+			#Convert img to float values for RGB
+			r = map(Float32,red(img))
+			g = map(Float32,green(img))
+			b = map(Float32,blue(img))
+
+			x[:,:,1,i] = r
+			x[:,:,2,i] = g
+			x[:,:,3,i] = b
+
+			setp(lstm; lr = lr)
+			l = zeros(2); m = zeros(2)
+
+			xtrn = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
+			train(lstm, (xtrn[:,1], cval_desc[imgName]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+			test(lstm, (xtrn[:,1], cval_desc[imgName]), softloss, int2word)
 		end
 
 	end
@@ -89,12 +155,8 @@ function trainLSTMFlickr(vgg16, lstm, lr, imageSize, batchsize)
 end
 
 function trainLSTMYT(lstm, lr, nepochs, batchsize)
-
-	# # Load caption vocabulary
-	word2int = JLD.load("lstm_data.jld","word2int")
-	int2word = JLD.load("lstm_data.jld","int2word")
-	xtrn = JLD.load("lstm_data.jld","xtrn")
-	ytrn = JLD.load("lstm_data.jld","ytrn")
+	xtrn = JLD.load("youtube_data.jld","xtrn")
+	ytrn = JLD.load("youtube_data.jld","ytrn")
 
 	idx = shuffle(collect(1:size(ytrn,2)))
 

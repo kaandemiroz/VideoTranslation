@@ -1,4 +1,4 @@
-using JLD
+using JLD, JSON
 
 function main()
 
@@ -68,7 +68,7 @@ function main()
 	index = 0
 	for i = 1:size(fdesc,2)
 		if sents_fdesc[i,2] == 0
-			index = index + 1
+			index += 1
 			get!(fnames, index, sents_fdesc[i,1])
 		end
 		fdesc[1,i] = index
