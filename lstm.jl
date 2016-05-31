@@ -32,8 +32,25 @@ end
 
 # Compile the LSTM Network to lstm.jld
 function main()
-	lstm = compile(:lstm_network)
-	JLD.save("lstm.jld", "model", clean(lstm))
+	info("Infering Vocabulary sizes...")
+	vocab_size_YT = 			length( JLD.load("youtube_data.jld", "word2int") )
+	vocab_size_YTFlickr =		length( JLD.load("flickr_data.jld", "word2intFlickr") )
+	vocab_size_YTCOCO =			length( JLD.load("coco_data.jld", "word2intCOCO") )
+	vocab_size_YTCOCOFlickr = 	length( JLD.load("coco_data.jld", "word2intCOCOFlickr") )
+
+	info("Compiling LSTM Models...")
+	lstmYT = 			compile(:lstm_network; vocab_size = vocab_size_YT )
+	lstmYTFlickr = 		compile(:lstm_network; vocab_size = vocab_size_YTFlickr)
+	lstmYTCOCO = 		compile(:lstm_network; vocab_size = vocab_size_YTCOCO)
+	lstmYTCOCOFlickr = 	compile(:lstm_network; vocab_size = vocab_size_YTCOCOFlickr)
+
+	info("Saving LSTM Models...")
+	JLD.save(	"lstm.jld",
+				"lstmYT", 			clean(lstmYT),
+				"lstmYTFlickr", 	clean(lstmYTFlickr),
+				"lstmYTCOCO", 		clean(lstmYTCOCO),
+				"lstmYTCOCOFlickr",	clean(lstmYTCOCOFlickr)	)
+
 end
 
 main()
