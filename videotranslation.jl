@@ -1,4 +1,4 @@
-using Knet, JLD, Images, Colors, CUDArt, JSON
+using Knet, JLD, CUDArt, JSON
 using Knet: regs, getp, setp, stack_length, stack_empty!, params
 
 function main()
@@ -27,8 +27,8 @@ function main()
 		# Load caption vocabulary
 		global word2int = JLD.load("coco_data.jld","word2intCOCO")
 		global int2word = JLD.load("coco_data.jld","int2wordCOCO")
-		global ctrn_desc = JLD.load("coco_data.jld","ctrn_descCOCO")
-		global cval_desc = JLD.load("coco_data.jld","cval_descCOCO")
+		global ctrn = JLD.load("coco_data.jld","ctrn_COCO")
+		global cval = JLD.load("coco_data.jld","cval_COCO")
 		trainLSTMCOCO(lstm, lr, imageSize, batchsize)
 		lr /= 2
 	elseif model == 4
@@ -37,8 +37,8 @@ function main()
 		# Load caption vocabulary
 		global word2int = JLD.load("coco_data.jld","word2intCOCOFlickr")
 		global int2word = JLD.load("coco_data.jld","int2wordCOCOFlickr")
-		global ctrn_desc = JLD.load("coco_data.jld","ctrn_descCOCOFlickr")
-		global cval_desc = JLD.load("coco_data.jld","cval_descCOCOFlickr")
+		global ctrn = JLD.load("coco_data.jld","ctrn_COCOFlickr")
+		global cval = JLD.load("coco_data.jld","cval_COCOFlickr")
 		trainLSTMFlickr(lstm, lr, imageSize, batchsize)
 		trainLSTMCOCO(lstm, lr, imageSize, batchsize)
 		lr /= 2
@@ -67,89 +67,28 @@ end
 
 function trainLSTMFlickr(lstm, lr, imageSize, batchsize)
 	info("training with Flickr30k...")
-	fpath = "Flickr30k/flickr30k-images/"
-	fdesc = JLD.load("flickr_data.jld","fdesc")
-	key = ".jpg"
-	val = rand(1:length(fdesc),1000)
+	xtrn = JLD.load("flickr_image_data.jld", "xtrn")
 
-	image_names = filter(x->contains(x,key), readdir(fpath))
-	numbatches = 1#div(size(image_names,1), batchsize)
+	setp(lstm; lr = lr)
+	l = zeros(2); m = zeros(2)
 
-	for batch = 0:numbatches-1
-		#Initialize x matrix
-		x = zeros( imageSize, imageSize, 3, batchsize )
-
-		for i = 1:batchsize
-			index = batch * batchsize + i
-			info("batch: $(index)")
-			#Read image file
-			imgName = image_names[val[index]]
-			imgPath = "$(fpath)$(imgName)"
-			img = load(imgPath)
-			#Resize image to 224x224
-			img = Images.imresize(img, (imageSize, imageSize))
-
-			#Convert img to float values for RGB
-			r = map(Float32,red(img))
-			g = map(Float32,green(img))
-			b = map(Float32,blue(img))
-
-			x[:,:,1,i] = r
-			x[:,:,2,i] = g
-			x[:,:,3,i] = b
-
-			setp(lstm; lr = lr)
-			l = zeros(2); m = zeros(2)
-
-			xtrn = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
-			train(lstm, (xtrn[:,1], fdesc[imgName]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-			test(lstm, (xtrn[:,1], fdesc[imgName]), softloss, int2word)
-		end
-
+	for epoch = 1:nepochs
+		train(lstm, (xtrn, ftrn[2:end,]), batchsize, softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+		test(lstm, (xtrn, ftrn[imgName]), batchsize, softloss, int2word)
 	end
 
 end
 
 function transLSTMCOCO(lstm, lr, imageSize, batchsize)
 	info("training with COCO2014...")
-	cpath = "COCO2014/val2014/"
-	key = ".jpg"
-	val = rand(1:length(fdesc),1000)
+	xtrn = JLD.load("coco_image_data.jld", "xtrn")
 
-	image_names = filter(x->contains(x,key), readdir(cpath))
-	numbatches = 1#div(size(image_names,1), batchsize)
+	setp(lstm; lr = lr)
+	l = zeros(2); m = zeros(2)
 
-	for batch = 0:numbatches-1
-		#Initialize x matrix
-		x = zeros( imageSize, imageSize, 3, batchsize )
-
-		for i = 1:batchsize
-			index = batch * batchsize + i
-			info("batch: $(index)")
-			#Read image file
-			imgName = image_names[val[index]]
-			imgPath = "$(fpath)$(imgName)"
-			img = load(imgPath)
-			#Resize image to 224x224
-			img = Images.imresize(img, (imageSize, imageSize))
-
-			#Convert img to float values for RGB
-			r = map(Float32,red(img))
-			g = map(Float32,green(img))
-			b = map(Float32,blue(img))
-
-			x[:,:,1,i] = r
-			x[:,:,2,i] = g
-			x[:,:,3,i] = b
-
-			setp(lstm; lr = lr)
-			l = zeros(2); m = zeros(2)
-
-			xtrn = reshape(to_host(forw(vgg16, x)), (4096, batchsize))
-			train(lstm, (xtrn[:,1], cval_desc[imgName]), softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-			test(lstm, (xtrn[:,1], cval_desc[imgName]), softloss, int2word)
-		end
-
+	for epoch = 1:nepochs
+		train(lstm, (xtrn, ctrn[2:end,]), batchsize, softloss; gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+		test(lstm, (xtrn, ctrn[imgName]), batchsize, softloss, int2word)
 	end
 
 end
@@ -158,15 +97,13 @@ function trainLSTMYT(lstm, lr, nepochs, batchsize)
 	xtrn = JLD.load("youtube_data.jld","xtrn")
 	ytrn = JLD.load("youtube_data.jld","ytrn")
 
-	idx = shuffle(collect(1:size(ytrn,2)))
-
 	setp(lstm; lr = lr)
 	l = zeros(2); m = zeros(2)
 
 	for epoch = 1:nepochs
 		print("epoch: $epoch\n")
-		train(lstm, (xtrn, ytrn), idx, batchsize, softloss, gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
-		test(lstm, (xtrn, ytrn), idx, batchsize, softloss, int2word)
+		train(lstm, (xtrn, ytrn), batchsize, softloss, gclip = 10, losscnt = fill!(l,0), maxnorm = fill!(m,0))
+		test(lstm, (xtrn, ytrn), batchsize, softloss, int2word)
 	end
 
 end
@@ -185,11 +122,13 @@ function mask(ybatch)
 	return mask
 end
 
-function train(f, data, idx, batchsize, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=nothing)
+function train(f, data, batchsize, loss; gcheck=false, gclip=0, maxnorm=nothing, losscnt=nothing)
 	info("training...")
 	reset_trn!(f)
     ystack = Any[]
 	(xtrn, ytrn) = data
+
+	idx = shuffle(collect(1:size(ytrn,2)))
 
 	for i = 1:batchsize:size(ytrn,2)-batchsize
 		print("batch: $(ceil(i/batchsize)) of $(ceil(size(ytrn,2)/batchsize))\n")

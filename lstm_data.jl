@@ -63,10 +63,16 @@ function main()
 	info("Preparing Flickr30k Data & Vocabulary...")
 
 	word2intFlickr = copy(word2int)
-	fdesc = Array( Int64, size(sents_fdesc,2) - 1, size(sents_fdesc,1) )
-	for i = 1:size(fdesc,2)
-		fdesc[1,i] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
-		fdesc[2:end,i] = [get!(word2intFlickr, lowercase(string(word)), 1+length(word2intFlickr)) for word in sents_fdesc[i,3:end]]
+	ftrn = Array( Int64, size(sents_fdesc,2) - 1, size(sents_fdesc,1) - 5000 )
+	fval = Array( Int64, size(sents_fdesc,2) - 1, 5000 )
+	for i = 1:size(sents_fdesc,1)
+		if i > 5000
+			ftrn[1,i-5000] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
+			ftrn[2:end,i-5000] = [get!(word2intFlickr, lowercase(string(word)), 1+length(word2intFlickr)) for word in sents_fdesc[i,3:end]]
+		else
+			fval[1,i] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
+			fval[2:end,i] = [get!(word2intFlickr, lowercase(string(word)), 1+length(word2intFlickr)) for word in sents_fdesc[i,3:end]]
+		end
 	end
 
 	int2wordFlickr = Array(Any,length(word2intFlickr))
@@ -103,11 +109,11 @@ function main()
 		push!( dataCOCO, [json["image_id"] transpose( [get!(word2intCOCO, word, 1 + length(word2intCOCO)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
 		push!( dataCOCOFlickr, [json["image_id"] transpose( [get!(word2intCOCOFlickr, word, 1 + length(word2intCOCOFlickr)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
 	end
-	ctrn_descCOCO = fill(word2intCOCO[""], findmax([length(array) for array in dataCOCO])[1], length(dataCOCO) )
-	ctrn_descCOCOFlickr = fill(word2intCOCOFlickr[""], findmax([length(array) for array in dataCOCOFlickr])[1], length(dataCOCOFlickr) )
+	ctrn_COCO = fill(word2intCOCO[""], findmax([length(array) for array in dataCOCO])[1], length(dataCOCO) )
+	ctrn_COCOFlickr = fill(word2intCOCOFlickr[""], findmax([length(array) for array in dataCOCOFlickr])[1], length(dataCOCOFlickr) )
 	for i = 1:length(dataCOCO)
-		ctrn_descCOCO[1:length(dataCOCO[i]),i] = dataCOCO[i]
-		ctrn_descCOCOFlickr[1:length(dataCOCOFlickr[i]),i] = dataCOCOFlickr[i]
+		ctrn_COCO[1:length(dataCOCO[i]),i] = dataCOCO[i]
+		ctrn_COCOFlickr[1:length(dataCOCOFlickr[i]),i] = dataCOCOFlickr[i]
 	end
 
 	info("Parsing COCO2014 Validation Captions...")
@@ -118,11 +124,11 @@ function main()
 		push!( dataCOCO, [json["image_id"] transpose( [get!(word2intCOCO, word, 1 + length(word2intCOCO)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
 		push!( dataCOCOFlickr, [json["image_id"] transpose( [get!(word2intCOCOFlickr, word, 1 + length(word2intCOCOFlickr)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
 	end
-	cval_descCOCO = fill(word2intCOCO[""], findmax([length(array) for array in dataCOCO])[1], length(dataCOCO) )
-	cval_descCOCOFlickr = fill(word2intCOCOFlickr[""], findmax([length(array) for array in dataCOCOFlickr])[1], length(dataCOCOFlickr) )
+	cval_COCO = fill(word2intCOCO[""], findmax([length(array) for array in dataCOCO])[1], length(dataCOCO) )
+	cval_COCOFlickr = fill(word2intCOCOFlickr[""], findmax([length(array) for array in dataCOCOFlickr])[1], length(dataCOCOFlickr) )
 	for i = 1:length(dataCOCO)
-		cval_descCOCO[1:length(dataCOCO[i]),i] = dataCOCO[i]
-		cval_descCOCOFlickr[1:length(dataCOCOFlickr[i]),i] = dataCOCOFlickr[i]
+		cval_COCO[1:length(dataCOCO[i]),i] = dataCOCO[i]
+		cval_COCOFlickr[1:length(dataCOCOFlickr[i]),i] = dataCOCOFlickr[i]
 	end
 
 	int2wordCOCO = Array(Any,length(word2intCOCO))
@@ -147,7 +153,8 @@ function main()
 	JLD.save(	"flickr_data.jld",
 				"word2intFlickr", word2intFlickr,
 				"int2wordFlickr", int2wordFlickr,
-				"fdesc", fdesc	)
+				"ftrn", ftrn,
+				"fval", fval	)
 
 	info("Saving COCO2014 Data...")
 	JLD.save(	"coco_data.jld",
@@ -157,10 +164,10 @@ function main()
 				"int2wordCOCOFlickr", int2wordCOCOFlickr,
 				"ctrn_names", ctrn_names,
 				"cval_names", cval_names,
-				"ctrn_descCOCO", ctrn_descCOCO,
-				"cval_descCOCO", cval_descCOCO,
-				"ctrn_descCOCOFlickr", ctrn_descCOCOFlickr,
-				"cval_descCOCOFlickr", cval_descCOCOFlickr	)
+				"ctrn_COCO", ctrn_COCO,
+				"cval_COCO", cval_COCO,
+				"ctrn_COCOFlickr", ctrn_COCOFlickr,
+				"cval_COCOFlickr", cval_COCOFlickr	)
 
 end
 
