@@ -63,15 +63,9 @@ function main()
 	info("Preparing Flickr30k Data & Vocabulary...")
 
 	word2intFlickr = copy(word2int)
-	fnames = Dict{Int32,Any}()
-	fdesc = Array( Int32, size(sents_fdesc,2) - 1, size(sents_fdesc,1) )
-	index = 0
+	fdesc = Array( Int64, size(sents_fdesc,2) - 1, size(sents_fdesc,1) )
 	for i = 1:size(fdesc,2)
-		if sents_fdesc[i,2] == 0
-			index += 1
-			get!(fnames, index, sents_fdesc[i,1])
-		end
-		fdesc[1,i] = index
+		fdesc[1,i] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
 		fdesc[2:end,i] = [get!(word2intFlickr, lowercase(string(word)), 1+length(word2intFlickr)) for word in sents_fdesc[i,3:end]]
 	end
 
@@ -153,7 +147,6 @@ function main()
 	JLD.save(	"flickr_data.jld",
 				"word2intFlickr", word2intFlickr,
 				"int2wordFlickr", int2wordFlickr,
-				# "fnames", fnames, 	# Saving fnames loops indefinitely for some reason
 				"fdesc", fdesc	)
 
 	info("Saving COCO2014 Data...")
