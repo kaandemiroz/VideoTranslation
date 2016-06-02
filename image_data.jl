@@ -8,12 +8,14 @@ function main()
 	global vgg16 = JLD.load("vgg16.jld", "model")
 
 	ftrn_desc = JLD.load("flickr_data.jld","ftrn")
+	ftrn_names = JLD.load("flickr_data.jld","ftrn_names")
 	info("Forwarding Flickr30k training images to VGG-16...")
-	xtrn = parseFlickrImages(fval_desc)
+	xtrn = parseFlickrImages(ftrn_desc, ftrn_names)
 
 	fval_desc = JLD.load("flickr_data.jld","fval")
+	fval_names = JLD.load("flickr_data.jld","fval_names")
 	info("Forwarding Flickr30k validation images to VGG-16...")
-	xval = parseFlickrImages(fval_desc)
+	xval = parseFlickrImages(fval_desc, fval_names)
 
 	info("Saving Flickr30k Data...")
 	JLD.save(	"flickr_image_data.jld",
@@ -38,7 +40,7 @@ function main()
 
 end
 
-function parseFlickrImages(desc)
+function parseFlickrImages(desc, names)
 
 	fpath = "Flickr30k/flickr30k-images/"
 	numimages = div( size(desc, 2), 5 )
@@ -53,9 +55,9 @@ function parseFlickrImages(desc)
 		x = zeros( imageSize, imageSize, 3, batchsize )
 
 		for i = 1:batchsize
-			index = batch * batchsize + i
+			index = batch * batchsize + i * 5
 			#Read image file
-			imgPath = "$(fpath)$(desc[1,index]).jpg"
+			imgPath = "$(fpath)$(names[desc[1,index]]).jpg"
 			img = load(imgPath)
 			#Resize image to 224x224
 			img = Images.imresize(img, (imageSize, imageSize))
@@ -79,7 +81,7 @@ end
 
 function parseCOCOImages(path, names)
 
-	numimages = div( length(names), 5 )
+	numimages = length(names)
 	numbatches = div( numimages, batchsize )
 	result = zeros(4096, numbatches * batchsize)
 

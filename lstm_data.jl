@@ -63,14 +63,25 @@ function main()
 	info("Preparing Flickr30k Data & Vocabulary...")
 
 	word2intFlickr = copy(word2int)
+	ftrn_names = Array( Int64, length(find(x -> x .== 0, sents_fdesc[:,2])) - 1000 )
 	ftrn = Array( Int64, size(sents_fdesc,2) - 1, size(sents_fdesc,1) - 5000 )
+	fval_names = Array( Int64, 1000 )
 	fval = Array( Int64, size(sents_fdesc,2) - 1, 5000 )
+	index = 0
 	for i = 1:size(sents_fdesc,1)
 		if i > 5000
-			ftrn[1,i-5000] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
+			if sents_fdesc[i,2] == 0
+				index += 1
+				ftrn_names[index - 1000] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
+			end
+			ftrn[1,i-5000] = index - 1000
 			ftrn[2:end,i-5000] = [get!(word2intFlickr, lowercase(string(word)), 1+length(word2intFlickr)) for word in sents_fdesc[i,3:end]]
 		else
-			fval[1,i] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
+			if sents_fdesc[i,2] == 0
+				index += 1
+				fval_names[index] = parse(Int64,rstrip(sents_fdesc[i,1],('.','j','p','g')))
+			end
+			fval[1,i] = index
 			fval[2:end,i] = [get!(word2intFlickr, lowercase(string(word)), 1+length(word2intFlickr)) for word in sents_fdesc[i,3:end]]
 		end
 	end
@@ -91,10 +102,18 @@ function main()
 	for json in ctrn_json["images"]
 		get!(ctrn_names, json["id"], json["file_name"])
 	end
+	ctrn_keys = Dict{Int32,Int32}()
+	for key in collect(keys(ctrn_names))
+		get!(ctrn_keys, key, 1 + length(ctrn_keys))
+	end
 
 	cval_names = Dict{Int32,Any}()
 	for json in cval_json["images"]
 		get!(cval_names, json["id"], json["file_name"])
+	end
+	cval_keys = Dict{Int32,Int32}()
+	for key in collect(keys(cval_names))
+		get!(cval_keys, key, 1 + length(cval_keys))
 	end
 
 	punc = Set(".,';:!?()[]{}<>\"\'")
@@ -106,8 +125,8 @@ function main()
 	dataCOCO = Any[]
 	dataCOCOFlickr = Any[]
 	for json in ctrn_json["annotations"]
-		push!( dataCOCO, [json["image_id"] transpose( [get!(word2intCOCO, word, 1 + length(word2intCOCO)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
-		push!( dataCOCOFlickr, [json["image_id"] transpose( [get!(word2intCOCOFlickr, word, 1 + length(word2intCOCOFlickr)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
+		push!( dataCOCO, [ctrn_keys[json["image_id"]] transpose( [get!(word2intCOCO, word, 1 + length(word2intCOCO)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
+		push!( dataCOCOFlickr, [ctrn_keys[json["image_id"]] transpose( [get!(word2intCOCOFlickr, word, 1 + length(word2intCOCOFlickr)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
 	end
 	ctrn_COCO = fill(word2intCOCO[""], findmax([length(array) for array in dataCOCO])[1], length(dataCOCO) )
 	ctrn_COCOFlickr = fill(word2intCOCOFlickr[""], findmax([length(array) for array in dataCOCOFlickr])[1], length(dataCOCOFlickr) )
@@ -121,8 +140,8 @@ function main()
 	dataCOCO = Any[]
 	dataCOCOFlickr = Any[]
 	for json in cval_json["annotations"]
-		push!( dataCOCO, [json["image_id"] transpose( [get!(word2intCOCO, word, 1 + length(word2intCOCO)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
-		push!( dataCOCOFlickr, [json["image_id"] transpose( [get!(word2intCOCOFlickr, word, 1 + length(word2intCOCOFlickr)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
+		push!( dataCOCO, [cval_keys[json["image_id"]] transpose( [get!(word2intCOCO, word, 1 + length(word2intCOCO)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
+		push!( dataCOCOFlickr, [cval_keys[json["image_id"]] transpose( [get!(word2intCOCOFlickr, word, 1 + length(word2intCOCOFlickr)) for word in split( lowercase( replace( json["caption"], punc, "" ) ) ) ] ) ] )
 	end
 	cval_COCO = fill(word2intCOCO[""], findmax([length(array) for array in dataCOCO])[1], length(dataCOCO) )
 	cval_COCOFlickr = fill(word2intCOCOFlickr[""], findmax([length(array) for array in dataCOCOFlickr])[1], length(dataCOCOFlickr) )
@@ -153,6 +172,8 @@ function main()
 	JLD.save(	"flickr_data.jld",
 				"word2intFlickr", word2intFlickr,
 				"int2wordFlickr", int2wordFlickr,
+				"ftrn_names", ftrn_names,
+				"fval_names", fval_names,
 				"ftrn", ftrn,
 				"fval", fval	)
 
@@ -172,59 +193,3 @@ function main()
 end
 
 main()
-
-
-
-# Old parsing code for reference
-
-# yval = Array(Any,100)
-# lastVid = 1
-# data = Any[]
-# for i = 1:size(sents_val,1)
-# 	vid = parse(Int,lstrip(sents_val[i,1], ['v','i','d'])) - 1200
-# 	push!(data, [word2int[string(word)] for word in sents_val[i,2:28] ])
-# 	if vid != lastVid
-# 		yval[lastVid] = data
-# 		data = Any[]
-# 	end
-# 	lastVid = vid
-# end
-# yval[lastVid] = data
-
-# yval = Array(Any,100)
-# open(yval_path) do f
-# 	for l in eachline(f)
-# 		data = Int32[]
-# 		s = split(l,'\t')
-# 		vid = parse(Int,lstrip(s[1], ['v','i','d'])) - 1200
-# 		for w in split(s[2])
-# 			push!(data, word2int[w])
-# 		end
-# 		push!(data,word2int["<eos>"])
-# 		yval[vid] = data
-# 	end
-# end
-
-# word2intFlickr = Dict{Any,Int32}()
-# fdesc = Dict{Any,Any}()
-# open(fdesc_path) do f
-# 	data = Any[]
-# 	for l in eachline(f)
-# 		seq = Int32[]
-# 		s = split(l,'\t')
-# 		num = parse(Int,s[2]) + 1
-# 		for w in split(s[3])
-# 			push!(seq, get!(word2intFlickr, w, 1+length(word2intFlickr)))
-# 		end
-# 		push!(data,seq)
-# 		if num == 5
-# 			fdesc[s[1]] = data
-# 			data = Any[]
-# 		end
-# 	end
-# end
-#
-# int2wordFlickr = Array(Any,length(word2intFlickr))
-# for m in keys(word2intFlickr)
-# 	int2wordFlickr[word2intFlickr[m]] = m
-# end
