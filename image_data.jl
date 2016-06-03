@@ -45,7 +45,7 @@ function parseFlickrImages(desc, names)
 	fpath = "Flickr30k/flickr30k-images/"
 	numimages = div( size(desc, 2), 5 )
 	numbatches = div( numimages, batchsize )
-	result = zeros(4096, numimages)
+	result = zeros(4096, numbatches * batchsize)
 
 	info("$(numimages) images, $(numbatches) batches, batchsize = $(batchsize)")
 

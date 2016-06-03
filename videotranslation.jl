@@ -29,8 +29,6 @@ function main()
 		global int2word = JLD.load("coco_data.jld","int2wordCOCO")
 		global ctrn = JLD.load("coco_data.jld","ctrn_COCO")
 		global cval = JLD.load("coco_data.jld","cval_COCO")
-		global ctrn_names = JLD.load("coco_data.jld","ctrn_names")
-		global cval_names = JLD.load("coco_data.jld","cval_names")
 		trainLSTMCOCO(lstm, lr)
 		lr /= 2
 	elseif model == 4
@@ -41,8 +39,6 @@ function main()
 		global int2word = JLD.load("coco_data.jld","int2wordCOCOFlickr")
 		global ctrn = JLD.load("coco_data.jld","ctrn_COCOFlickr")
 		global cval = JLD.load("coco_data.jld","cval_COCOFlickr")
-		global ctrn_names = JLD.load("coco_data.jld","ctrn_names")
-		global cval_names = JLD.load("coco_data.jld","cval_names")
 		trainLSTMFlickr(lstm, lr)
 		trainLSTMCOCO(lstm, lr)
 		lr /= 2
@@ -74,7 +70,7 @@ function trainLSTMFlickr(lstm, lr)
 	xtrn = JLD.load("flickr_image_data.jld", "xtrn")
 	ftrn = JLD.load("flickr_data.jld", "ftrn")[:,1:size(xtrn,2)*5]
 
-	idx = shuffle(collect(1:size(ctrn,2)))
+	idx = shuffle(collect(1:size(ftrn,2)))
 
 	setp(lstm; lr = lr)
 	l = zeros(2); m = zeros(2)
@@ -91,6 +87,7 @@ end
 function trainLSTMCOCO(lstm, lr)
 	info("training with COCO2014...")
 	xtrn = JLD.load("coco_image_data.jld", "xtrn")
+	ctrn = ctrn[:,find( x -> x <= size(xtrn,2), ctrn[1,:])]
 
 	idx = shuffle(collect(1:size(ctrn,2)))
 
