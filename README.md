@@ -17,6 +17,7 @@ After downloading the .mat file, rename it to vgg16.mat for compatibility.
 ######vgg16.jl
 ######lstm.jl
 ######lstm_data.jl
+######image_data.jl
 #####It is recommended that you are in the project folder while running these files
 These programs will create the necessary .jld files in your current workspace
 
